@@ -131,7 +131,7 @@ def miss_case_summary(df):
         ascending=False
     ).reset_index(drop=True)
 
-def vis_miss(df):
+def vis_dat(df):
     """
     Visualize missing values and column data types in a dataframe.
 
