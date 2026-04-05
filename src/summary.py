@@ -3,7 +3,7 @@ from utils import count_missing, validate_dataframe
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-
+from matplotlib.patches import Patch
 
 def miss_var_summary(df):
     """
@@ -170,11 +170,10 @@ def vis_miss(df):
 
     colors = list(plt.cm.Set2.colors[:len(unique_dtypes)])
     colors.append("grey")
-
+    legend_handles = []
     cmap = ListedColormap(colors)
     fig, ax = plt.subplots()
     ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
-
     ax.set_xticks(range(df.shape[1]))
     ax.set_xticklabels(df.columns, rotation=45)
     plt.xticks(
@@ -182,16 +181,19 @@ def vis_miss(df):
     labels=df.columns,
     rotation=70
     )
+    for dtype, code in dtype_map.items():
+        legend_handles.append(
+            Patch(facecolor=colors[code], label=dtype)
+            )
+
+    legend_handles.append(
+        Patch(facecolor=colors[len(colors)-1], label="NA")
+        )
+    ax.legend(handles=legend_handles, title="Type", loc="upper right")
     plt.gca().xaxis.tick_top()
+    plt.subplots_adjust(top=0.85)
     plt.tight_layout()
     plt.show()
     return None
 
-df=pd.read_csv(r"c:\Users\chivu\OneDrive\Documents\important files\ST606\data\CRONOS3 Theme - Make it Healthy.csv")
 
-df = pd.DataFrame({
-    "A": [1, 2, np.nan, 4],
-    "B": [1.5, np.nan, 3.2, 4.1],
-    "C": ["x", "y", "z", None]
-})
-vis_miss(df)
