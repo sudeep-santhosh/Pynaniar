@@ -299,3 +299,56 @@ def gg_miss_upset(df):
 
     return fig, (ax_set, ax_bar, ax_matrix)
 
+
+def vis_miss(df, sort=False):
+    """
+    Visualize missing values in a dataframe using a simple matrix plot.
+
+    This function displays the structure of missing data where:
+    - rows represent observations
+    - columns represent variables
+    - missing values are shown in dark color
+    - present values are shown in light color
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe to visualize.
+
+    sort : bool, default=False
+        If True, rows are sorted by number of missing values (descending),
+        making patterns easier to detect. If False, original row order is preserved.
+
+    Returns
+    -------
+    fig, ax
+        Matplotlib figure and axes objects for further customization.
+    """
+
+   
+    miss = df.isna()
+
+
+    if sort:
+        miss = miss.loc[
+            miss.sum(axis=1).sort_values(ascending=False).index
+        ]
+
+    plot_matrix = miss.astype(int)
+
+
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
+
+  
+    ax.set_xticks(range(len(df.columns)))
+    ax.set_xticklabels(df.columns, rotation=70)
+
+    ax.set_yticks([]) 
+    ax.set_title("Missing Data Matrix")
+
+    plt.tight_layout()
+
+    return fig, ax
