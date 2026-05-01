@@ -337,7 +337,6 @@ def vis_miss(df, sort=False):
     plot_matrix = miss.astype(int)
 
 
-    import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
@@ -353,7 +352,7 @@ def vis_miss(df, sort=False):
 
     return fig, ax
 
-import pandas as pd
+
 
 
 def add_shadow(
