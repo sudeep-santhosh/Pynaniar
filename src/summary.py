@@ -352,3 +352,55 @@ def vis_miss(df, sort=False):
     plt.tight_layout()
 
     return fig, ax
+
+import pandas as pd
+
+
+def add_shadow(
+    df,
+    suffix="_NA",
+    missing_label="NA",
+    complete_label="!NA",
+    only_missing=False
+):
+    """
+    Create shadow columns indicating missingness.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    suffix : str, default="_NA"
+        Suffix to append to shadow columns.
+
+    missing_label : str, default="NA"
+        Label used for missing values.
+
+    complete_label : str, default="!NA"
+        Label used for non-missing values.
+
+    only_missing : bool, default=False
+        If True, return only shadow columns.
+        If False, bind shadow columns to original dataframe.
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
+
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input must be a pandas DataFrame.")
+
+    shadow = df.isna().replace({
+        True: missing_label,
+        False: complete_label
+    })
+
+    shadow.columns = [f"{col}{suffix}" for col in df.columns]
+
+    if only_missing:
+        return shadow
+
+    return pd.concat([df, shadow], axis=1)
+
