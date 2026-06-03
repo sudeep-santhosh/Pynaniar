@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from tabular import miss_case_cumsum
+from tabular import *
 test_df = pd.DataFrame({
     "A": [1, np.nan, 3, np.nan, np.nan, 6, 7, np.nan, 9, 10,
           11, 12, np.nan, 14, 15, np.nan, 17, 18, 19, np.nan,
@@ -27,5 +27,5 @@ test_df = pd.DataFrame({
           21, 22, np.nan, 24, 25, 26, 27, np.nan, 29, 30]
 })
 
-result = miss_case_cumsum(test_df)
+result = n_miss_row(test_df)
 print(result)
