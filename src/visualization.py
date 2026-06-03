@@ -3,11 +3,11 @@ from utils import count_missing
 from validation import validate_dataframe
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, to_hex
 from matplotlib.patches import Patch
 from matplotlib.gridspec import GridSpec
 
-def vis_dat(df):
+def vis_dat(df, visualizer="mat"):
     """
     Visualize missing values and column data types in a dataframe.
 
@@ -55,7 +55,24 @@ def vis_dat(df):
     cmap = ListedColormap(colors)
     
     fig, ax = plt.subplots()
-    ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
+    if visualizer == "mat":
+        ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
+    if visualizer == "sb":
+        import seaborn as sns
+        sns.heatmap(plot_matrix, cmap=cmap, ax=ax, cbar=False)
+    elif visualizer == "plotly":
+        # convert matplotlib colors to hex for plotly
+        hex_colors = [to_hex(c) for c in colors]
+        import plotly.express as px
+        fig = px.imshow(plot_matrix, color_continuous_scale=hex_colors, aspect='auto')
+        fig.update_coloraxes(showscale=False)
+        # set x axis labels similar to matplotlib xticks
+        fig.update_xaxes(tickmode='array', tickvals=list(range(len(df.columns))), ticktext=list(df.columns), tickangle=70, side='top')
+        return fig, None
+    else:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
+        
     #ax.set_xticks(range(df.shape[1]))
     #ax.set_xticklabels(df.columns, rotation=45)
     plt.xticks(
