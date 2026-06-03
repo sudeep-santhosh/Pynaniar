@@ -1,6 +1,6 @@
 import pandas as pd
 from utils import count_missing
-from validation import validate_dataframe
+from validation import validate_dataframe, validate_search, validate_column, validation_span_check,validation_x,validate_columns
 import numpy as np
 
 def miss_var_summary(df):
@@ -211,4 +211,64 @@ def miss_case_cumsum(df):
     return result
 
 
+def miss_prop_summary(df):
+    """
+    Summarize missing value proportions in a dataframe.
 
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Summary of missing value proportions.
+    """
+    validate_dataframe(df)
+
+    return pd.DataFrame({
+        "df": [
+            count_missing(df).sum() / (df.shape[0] * df.shape[1])
+        ],
+        "var": [
+            (count_missing(df) > 0).mean()
+        ],
+        "case": [
+            (count_missing(df, axis=1) > 0).mean()
+        ]
+    })
+
+
+def miss_scan_count(df,search=[]):
+    """
+    Count occurrences of specified values in each column.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Input dataframe.
+    search : scalar or iterable
+        Value(s) to search for.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns:
+        - variable
+        - n
+    """
+    validate_dataframe(df)
+    validate_search(df)
+
+    if np.isscalar(search):
+        search = [search]
+
+    counts = {col: df[col].isin(search).sum() for col in df.columns}
+
+    result = pd.DataFrame({
+        "variable": list(counts.keys()),
+        "n": list(counts.values())
+    })
+
+    return result.sort_values(by="n", ascending=False).reset_index(drop=True)
