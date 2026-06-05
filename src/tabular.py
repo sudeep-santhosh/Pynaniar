@@ -272,3 +272,46 @@ def miss_scan_count(df,search=[]):
     })
 
     return result.sort_values(by="n", ascending=False).reset_index(drop=True)
+
+def miss_summary(df):
+    """
+    Generate a comprehensive summary of missing values.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe to analyze.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A one-row summary containing:
+
+        - miss_df_prop : float
+            Proportion of missing values in the entire dataframe.
+
+        - miss_var_prop : float
+            Proportion of variables (columns) containing at least
+            one missing value.
+
+        - miss_case_prop : float
+            Proportion of cases (rows) containing at least
+            one missing value.
+
+        - miss_var_summary : pandas.DataFrame
+            Summary of missing values by variable.
+
+        - miss_case_summary : pandas.DataFrame
+            Summary of missing values by case.
+    """
+    validate_dataframe(df)
+
+    prop_summary = miss_prop_summary(df)
+
+    return pd.DataFrame({
+        "miss_df_prop": [prop_summary.loc[0, "df"]],
+        "miss_var_prop": [prop_summary.loc[0, "var"]],
+        "miss_case_prop": [prop_summary.loc[0, "case"]],
+        "miss_var_summary": [miss_var_summary(df)],
+        "miss_case_summary": [miss_case_summary(df)]
+    })
