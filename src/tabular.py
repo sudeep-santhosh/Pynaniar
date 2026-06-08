@@ -315,3 +315,32 @@ def miss_summary(df):
         "miss_var_summary": [miss_var_summary(df)],
         "miss_case_summary": [miss_case_summary(df)]
     })
+
+def miss_var_cumsum(df):
+    """
+    Calculate cumulative sum of missing values across variables.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A dataframe containing:
+
+        - variable : column name
+        - n_miss : number of missing values in the variable
+        - n_miss_cumsum : cumulative sum of missing values
+    """
+    validate_dataframe(df)
+
+    result = pd.DataFrame({
+        "variable": df.columns,
+        "n_miss": count_missing(df).values
+    })
+
+    result["n_miss_cumsum"] = result["n_miss"].cumsum()
+
+    return result

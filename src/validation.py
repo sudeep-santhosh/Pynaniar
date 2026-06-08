@@ -1,5 +1,6 @@
 import warnings
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 
 def validate_dataframe(df):
     """
@@ -75,4 +76,14 @@ def validate_columns(df, columns):
         raise ValueError(
             f"Column(s) not found: {missing_cols}"
         )
+
+def validate_numeric_series(x):
+    """
+    Validate that x is a numeric pandas Series.
+    """
+    if not isinstance(x, pd.Series):
+        raise TypeError("x must be a pandas Series")
+
+    if not is_numeric_dtype(x):
+        raise TypeError("x must be numeric")
     
