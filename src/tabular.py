@@ -344,3 +344,49 @@ def miss_var_cumsum(df):
     result["n_miss_cumsum"] = result["n_miss"].cumsum()
 
     return result
+
+def miss_var_run(df, var):
+    """
+    Compute run lengths of missing and complete values
+    for a single variable.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    var : str
+        Column name.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing:
+        - run_length
+        - is_na
+    """
+    validate_dataframe(df)
+    validate_search(var)
+
+    is_missing = df[var].isna()
+    runs = []
+    current = is_missing.iloc[0]
+    length = 1
+
+    for value in is_missing.iloc[1:]:
+        if value == current:
+            length += 1
+        else:
+            runs.append({
+                "run_length": length,
+                "is_na": "missing" if current else "complete"
+            })
+            current = value
+            length = 1
+
+    runs.append({
+        "run_length": length,
+        "is_na": "missing" if current else "complete"
+    })
+
+    return pd.DataFrame(runs)
