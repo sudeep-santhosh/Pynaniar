@@ -390,3 +390,73 @@ def miss_var_run(df, var):
     })
 
     return pd.DataFrame(runs)
+
+def miss_var_span(df, var, span_every):
+    """
+    Summarize missingness in consecutive spans of a variable.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    var : str
+        Column name.
+
+    span_every : int
+        Number of observations per span.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing:
+        - span_counter
+        - n_miss
+        - n_complete
+        - prop_miss
+        - prop_complete
+        - n_in_span
+    """
+    validate_dataframe(df)
+    validate_column(df, var)
+    validation_span_check(span_every)
+    series = df[var]
+    results = []
+    for i in range(0, len(df), span_every):
+
+        chunk = df[[var]].iloc[i:i + span_every]
+
+        summary = miss_var_summary(chunk)
+
+        n_miss = summary.loc[0, "n_miss"]
+        n_complete = summary.loc[0, "n_complete"]
+        pct_miss = summary.loc[0, "pct_miss"]
+
+        results.append({
+            "span_counter": len(results) + 1,
+            "n_miss": n_miss,
+            "n_complete": n_complete,
+            "prop_miss": pct_miss / 100,
+            "prop_complete": 1 - (pct_miss / 100),
+            "n_in_span": len(chunk)
+        })
+
+    return pd.DataFrame(results)
+
+def miss_var_which(df):
+    """
+    Return the names of variables containing at least one missing value.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    list
+        List of column names containing missing values.
+    """
+    validate_dataframe(df)
+
+    return df.columns[df.isna().any()].tolist()
