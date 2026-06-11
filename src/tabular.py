@@ -460,3 +460,57 @@ def miss_var_which(df):
     validate_dataframe(df)
 
     return df.columns[df.isna().any()].tolist()
+
+def n_complete(x):
+    """
+    Count the number of complete (non-missing) values.
+
+    Parameters
+    ----------
+    x : pandas.Series, numpy.ndarray, list
+        Input vector.
+
+    Returns
+    -------
+    int
+        Number of complete values.
+    """
+
+    validation_x(x)
+    return pd.Series(x).notna().sum()
+
+def n_miss(x):
+    """
+    Count the number of missing values.
+
+    Parameters
+    ----------
+    x : array-like
+        Input vector.
+
+    Returns
+    -------
+    int
+        Number of missing values.
+    """
+
+    validation_x(x)
+    return len(x) - n_complete(x)
+
+def n_miss_row(df):
+    """
+    Count the number of missing values in each row.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    pandas.Series
+        Number of missing values in each row.
+    """
+    validate_dataframe(df)
+
+    return df.isna().sum(axis=1)
