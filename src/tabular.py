@@ -514,3 +514,57 @@ def n_miss_row(df):
     validate_dataframe(df)
 
     return df.isna().sum(axis=1)
+
+def n_complete_row(df):
+    """
+    Count the number of complete (non-missing) values in each row.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    pandas.Series
+        Number of complete values in each row.
+    """
+    validate_dataframe(df)
+
+    return df.shape[1] - n_miss_row(df)
+
+def pct_complete(x):
+    """
+    Calculate the percentage of complete (non-missing) values.
+
+    Parameters
+    ----------
+    x : array-like
+        Input vector.
+
+    Returns
+    -------
+    float
+        Percentage of complete values in the input vector.
+    """
+    validation_x(x)
+
+    return (n_complete(x) / len(x)) * 100
+
+def pct_miss(x):
+    """
+    Calculate the percentage of missing values.
+
+    Parameters
+    ----------
+    x : array-like
+        Input vector.
+
+    Returns
+    -------
+    float
+        Percentage of missing values in the input vector.
+    """
+    validation_x(x)
+
+    return 100 - pct_complete(x)
