@@ -568,3 +568,57 @@ def pct_miss(x):
     validation_x(x)
 
     return 100 - pct_complete(x)
+
+def prop_complete(x):
+    """
+    Calculate the proportion of complete (non-missing) values.
+
+    Parameters
+    ----------
+    x : array-like
+        Input vector.
+
+    Returns
+    -------
+    float
+        Proportion of complete values in the input vector.
+    """
+    validation_x(x)
+
+    return n_complete(x) / len(x)
+
+def prop_miss(x):
+    """
+    Calculate the proportion of missing values.
+
+    Parameters
+    ----------
+    x : array-like
+        Input vector.
+
+    Returns
+    -------
+    float
+        Proportion of missing values in the input vector.
+    """
+    validation_x(x)
+
+    return 1 - prop_complete(x)
+
+def prop_complete_row(df):
+    """
+    Calculate the proportion of complete values in each row.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    pandas.Series
+        Proportion of complete values in each row.
+    """
+    validate_dataframe(df)
+
+    return n_complete_row(df) / df.shape[1]
