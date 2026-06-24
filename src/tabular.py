@@ -622,3 +622,75 @@ def prop_complete_row(df):
     validate_dataframe(df)
 
     return n_complete_row(df) / df.shape[1]
+
+def prop_miss_row(df):
+    """
+    Calculate the proportion of missing values in each row.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    pandas.Series
+        Proportion of missing values in each row.
+    """
+    validate_dataframe(df)
+
+    return 1 - prop_complete_row(df)
+
+
+def add_any_miss(
+    df,
+    columns=None,
+    label="any_miss",
+    missing="missing",
+    complete="complete"
+):
+    """
+    Add a column indicating whether each row contains
+    at least one missing value.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe.
+    columns : list-like, optional
+        Columns to check for missing values.
+        If None, all columns are used.
+    label : str, default="any_miss"
+        Name of the new column.
+    missing : str, default="missing"
+        Value assigned when a row contains at least
+        one missing value.
+    complete : str, default="complete"
+        Value assigned when a row contains no
+        missing values.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with an additional indicator column.
+    """
+    validate_dataframe(df)
+
+    result = df.copy()
+
+    if columns is None:
+        check_df = result
+        suffix = "_all"
+    else:
+        validate_columns(df, columns)
+
+        check_df = result[columns]
+        suffix = "_vars"
+
+    result[f"{label}{suffix}"] = np.where(
+        check_df.isna().any(axis=1),
+        missing,
+        complete
+    )
+
+    return result
