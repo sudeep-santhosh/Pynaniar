@@ -694,3 +694,72 @@ def add_any_miss(
     )
 
     return result
+
+def add_n_miss(df, columns=None, label="n_miss"):
+    """
+    Add a column containing the number of missing values per row.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    columns : list[str], optional
+        Columns to use when counting missing values.
+        If None, all columns are used.
+
+    label : str, default="n_miss"
+        Base name for the added column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe with an additional column containing
+        row-wise missing value counts.
+    """
+    validate_dataframe(df)
+
+    result = df.copy()
+
+    if columns is None:
+        result[f"{label}_all"] = n_miss_row(df)
+    else:
+        validate_columns(df, columns)
+        result[f"{label}_vars"] = n_miss_row(df[columns])
+
+    return result
+
+def add_prop_miss(df, columns=None, label="prop_miss"):
+    """
+    Add a column containing the proportion of missing values per row.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    columns : list[str], optional
+        Columns to use when calculating the proportion
+        of missing values. If None, all columns are used.
+
+    label : str, default="prop_miss"
+        Base name for the added column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe with an additional column containing
+        row-wise proportions of missing values.
+    """
+    validate_dataframe(df)
+
+    result = df.copy()
+
+    if columns is None:
+        result[f"{label}_all"] = prop_miss_row(df)
+    else:
+        validate_columns(df, columns)
+        result[f"{label}_vars"] = prop_miss_row(df[columns])
+
+    return result
+
