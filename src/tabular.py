@@ -763,3 +763,60 @@ def add_prop_miss(df, columns=None, label="prop_miss"):
 
     return result
 
+def any_row_miss(df):
+    """
+    Check whether each row contains at least one missing value.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    pandas.Series
+        Boolean Series indicating whether each row
+        contains at least one missing value.
+    """
+    validate_dataframe(df)
+
+    return df.isna().any(axis=1)
+
+def label_missings(df, columns=None,
+                   missing="Missing",
+                   complete="Not Missing"):
+    """
+    Label rows as missing or complete.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    columns : list[str], optional
+        Columns to inspect. If None, all columns are used.
+
+    missing : str, default="Missing"
+        Label for rows containing at least one missing value.
+
+    complete : str, default="Not Missing"
+        Label for rows containing no missing values.
+
+    Returns
+    -------
+    pandas.Series
+        Series containing missing/complete labels.
+    """
+    validate_dataframe(df)
+
+    if columns is None:
+        data = df
+    else:
+        validate_columns(df, columns)
+        data = df[columns]
+
+    return np.where(
+        any_row_miss(data),
+        missing,
+        complete
+    )
