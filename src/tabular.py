@@ -820,3 +820,67 @@ def label_missings(df, columns=None,
         missing,
         complete
     )
+
+
+def add_label_missings(df,
+                       columns=None,
+                       missing="Missing",
+                       complete="Not Missing"):
+    """
+    Add a column indicating whether a row contains
+    any missing values.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    columns : list[str], optional
+        Columns to inspect. If None, all columns are used.
+
+    missing : str, default="Missing"
+        Label for rows containing at least one missing value.
+
+    complete : str, default="Not Missing"
+        Label for rows containing no missing values.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe with an added 'any_missing' column.
+    """
+    validate_dataframe(df)
+
+    result = df.copy()
+
+    result["any_missing"] = label_missings(
+        result,
+        columns=columns,
+        missing=missing,
+        complete=complete
+    )
+
+    return result
+
+def any_row_shade(df):
+    """
+    Check whether each row contains at least one shadow
+    missing value.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Shadow dataframe.
+
+    Returns
+    -------
+    pandas.Series
+        Boolean Series indicating whether each row
+        contains at least one shadow missing value.
+    """
+    validate_dataframe(df)
+
+    return df.astype(str).apply(
+        lambda row: row.str.match(r"^NA|^NA_").any(),
+        axis=1
+    )
