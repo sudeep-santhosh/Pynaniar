@@ -1,5 +1,6 @@
 import warnings
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 
 def validate_dataframe(df):
     """
@@ -34,9 +35,9 @@ def validate_search(search):
     if isinstance(search, (list, tuple, set)) and len(search) == 0:
         raise ValueError("'search' cannot be empty.")
     
-def validate_column(df, column):
+def validate_column(df, column,check=1):
 
-    if len(column) == 0:
+    if len(column) == 0 and check == 1:
         raise ValueError("Column name cannot be empty.")
 
     if column not in df.columns:
@@ -56,4 +57,33 @@ def validation_span_check(span):
 def validation_x(x):
     if x is None:
         raise ValueError("'x' cannot be None.")
+
+
+def validate_columns(df, columns):
+    """
+    Validate that all specified columns exist in the DataFrame.
+    """
+
+    if columns is None:
+        return
+
+    if len(columns) == 0:
+        raise ValueError("Columns list cannot be empty.")
+
+    missing_cols = [col for col in columns if col not in df.columns]
+
+    if missing_cols:
+        raise ValueError(
+            f"Column(s) not found: {missing_cols}"
+        )
+
+def validate_numeric_series(x):
+    """
+    Validate that x is a numeric pandas Series.
+    """
+    if not isinstance(x, pd.Series):
+        raise TypeError("x must be a pandas Series")
+
+    if not is_numeric_dtype(x):
+        raise TypeError("x must be numeric")
     
