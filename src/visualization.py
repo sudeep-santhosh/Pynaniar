@@ -3,11 +3,11 @@ from utils import count_missing
 from validation import validate_dataframe
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, to_hex
 from matplotlib.patches import Patch
 from matplotlib.gridspec import GridSpec
 
-def vis_dat(df):
+def vis_dat(df, visualizer="mat"):
     """
     Visualize missing values and column data types in a dataframe.
 
@@ -54,29 +54,53 @@ def vis_dat(df):
     legend_handles = []
     cmap = ListedColormap(colors)
     
-    fig, ax = plt.subplots()
-    ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
-    #ax.set_xticks(range(df.shape[1]))
-    #ax.set_xticklabels(df.columns, rotation=45)
-    plt.xticks(
-    ticks=range(len(df.columns)),
-    labels=df.columns,
-    rotation=70
-    )
-    for dtype, code in dtype_map.items():
-        legend_handles.append(
-            Patch(facecolor=colors[code], label=dtype)
+    plotly_mode = visualizer == "plotly"
+    if plotly_mode:
+        # convert matplotlib colors to hex for plotly
+        hex_colors = [to_hex(c) for c in colors]
+        import plotly.express as px
+        fig = px.imshow(plot_matrix, color_continuous_scale=hex_colors, aspect='auto')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(
+            tickmode='array',
+            tickvals=list(range(len(df.columns))),
+            ticktext=list(df.columns),
+            tickangle=70,
+            side='top'
+        )
+        ax = None
+    else:
+        fig, ax = plt.subplots()
+        if visualizer == "mat":
+            ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
+        elif visualizer == "sb":
+            import seaborn as sns
+            sns.heatmap(plot_matrix, cmap=cmap, ax=ax, cbar=False)
+        else:
+            print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+            ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
+
+        #ax.set_xticks(range(df.shape[1]))
+        #ax.set_xticklabels(df.columns, rotation=45)
+        plt.xticks(
+            ticks=range(len(df.columns)),
+            labels=df.columns,
+            rotation=70
+        )
+        for dtype, code in dtype_map.items():
+            legend_handles.append(
+                Patch(facecolor=colors[code], label=dtype)
             )
 
-    legend_handles.append(
-        Patch(facecolor=colors[-1], label="NA")
+        legend_handles.append(
+            Patch(facecolor=colors[-1], label="NA")
         )
-    
-    ax.legend(handles=legend_handles, title="Type", loc="upper right")
-    #plt.gca().xaxis.tick_top()
-    ax.xaxis.tick_top()
-    plt.subplots_adjust(top=0.85)
-    plt.tight_layout()
+        ax.legend(handles=legend_handles, title="Type", loc="upper right")
+        #plt.gca().xaxis.tick_top()
+        ax.xaxis.tick_top()
+        plt.subplots_adjust(top=0.85)
+        plt.tight_layout()
+
     return fig, ax
 
 
