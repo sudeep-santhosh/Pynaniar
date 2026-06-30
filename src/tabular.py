@@ -884,3 +884,102 @@ def any_row_shade(df):
         lambda row: row.str.match(r"^NA|^NA_").any(),
         axis=1
     )
+
+def label_shadow(
+    df,
+    columns=None,
+    missing="Missing",
+    complete="Not Missing"
+):
+    """
+    Label rows in shadow data as missing or complete.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Shadow dataframe.
+
+    columns : list[str], optional
+        Columns to inspect. If None, all columns
+        are used.
+
+    missing : str, default="Missing"
+        Label assigned to rows containing at least
+        one shadow missing value.
+
+    complete : str, default="Not Missing"
+        Label assigned to rows containing no shadow
+        missing values.
+
+    Returns
+    -------
+    pandas.Series
+        Series of missing/complete labels.
+    """
+    validate_dataframe(df)
+
+    if not any_shadow(df):
+        raise ValueError(
+            "label_shadow() requires shadow columns."
+        )
+
+    if columns is not None:
+        validate_columns(df, columns)
+        df = df[columns]
+
+    return np.where(
+        any_row_shade(df),
+        missing,
+        complete
+    )
+
+def add_label_shadow(
+    df,
+    columns=None,
+    missing="Missing",
+    complete="Not Missing"
+):
+    """
+    Add a column indicating whether each row
+    contains shadow missing values.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Shadow dataframe.
+
+    columns : list[str], optional
+        Columns to inspect. If None, all columns
+        are used.
+
+    missing : str, default="Missing"
+        Label assigned to rows containing at least
+        one shadow missing value.
+
+    complete : str, default="Not Missing"
+        Label assigned to rows containing no shadow
+        missing values.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataframe with an added 'any_missing'
+        column.
+    """
+    validate_dataframe(df)
+
+    if not any_shadow(df):
+        raise ValueError(
+            "add_label_shadow() requires shadow columns."
+        )
+
+    result = df.copy()
+
+    result["any_missing"] = label_shadow(
+        result,
+        columns=columns,
+        missing=missing,
+        complete=complete
+    )
+
+    return result
