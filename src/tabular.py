@@ -1,6 +1,6 @@
 import pandas as pd
 from utils import count_missing
-from validation import validate_dataframe, validate_search, validate_column, validation_span_check,validation_x,validate_columns
+from validation import validate_dataframe, validate_search, validate_column, validation_span_check,validation_x,validate_columns,any_shadow
 import numpy as np
 
 def miss_var_summary(df):
@@ -983,3 +983,71 @@ def add_label_shadow(
     )
 
     return result
+
+def label_miss_id(x):
+    """
+    Label each value as missing or not missing.
+
+    Parameters
+    ----------
+    x : array-like
+        Input vector.
+
+    Returns
+    -------
+    pandas.Series
+        Series containing 'Missing' and
+        'Not Missing' labels.
+    """
+    validation_x(x)
+
+    return pd.Series(
+        np.where(
+            pd.isna(x),
+            "Missing",
+            "Not Missing"
+        )
+    )
+
+def label_miss_2d(x1, x2):
+    """
+    Label pairs of values as missing or not missing.
+
+    Parameters
+    ----------
+    x1 : array-like
+        First input vector.
+
+    x2 : array-like
+        Second input vector.
+
+    Returns
+    -------
+    pandas.Series
+        Series containing 'Missing' and
+        'Not Missing' labels.
+    """
+    validation_x(x1)
+    validation_x(x2)
+
+    if len(x1) != len(x2):
+        raise ValueError(
+            "x1 and x2 must have the same length."
+        )
+
+    temp = (
+        pd.DataFrame({
+            "x1": x1,
+            "x2": x2
+        })
+        .isna()
+        .sum(axis=1)
+    )
+
+    return pd.Series(
+        np.where(
+            temp == 0,
+            "Not Missing",
+            "Missing"
+        )
+    )
