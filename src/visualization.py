@@ -203,10 +203,7 @@ def gg_miss_upset(df, visualizer="mat"):
 
         fig.update_layout(title="Missing Data Patterns", showlegend=False)
         return fig, None
-
-    if visualizer == "sb":
-        import seaborn as sns
-
+    else:
         fig = plt.figure(figsize=(10, 6))
         gs = GridSpec(2, 2, width_ratios=[1, 3], height_ratios=[2, 1])
 
@@ -214,57 +211,16 @@ def gg_miss_upset(df, visualizer="mat"):
         ax_bar = fig.add_subplot(gs[0, 1])
         ax_matrix = fig.add_subplot(gs[1, 1])
 
-        # Top bar: intersection sizes
-        sns.barplot(x=list(range(len(pattern_matrix))), y=pattern_matrix["count"], ax=ax_bar, color="steelblue")
-        ax_bar.set_ylabel("Intersection Size")
-        ax_bar.set_xticks([])
-
-        # Matrix: scatter points and connecting lines (match matplotlib)
-        matrix_df = pattern_matrix.drop(columns=["count"])  # columns = original df columns
-        for i, row in matrix_df.iterrows():
-            missing_positions = []
-            for j, col in enumerate(matrix_df.columns):
-                if row[col] == 1:
-                    ax_matrix.scatter(i, j, color="black", s=40)
-                    missing_positions.append(j)
-                else:
-                    ax_matrix.scatter(i, j, color="lightgrey", s=40)
-
-            if len(missing_positions) > 1:
-                ax_matrix.plot([i] * len(missing_positions), missing_positions, color="black")
-
-        ax_matrix.set_yticks(range(len(df.columns)))
-        ax_matrix.set_yticklabels(df.columns)
-        ax_matrix.set_xticks(range(len(pattern_matrix)))
-        ax_matrix.set_xticklabels([])
-
-        # Left bar: set sizes
-        ax_set.barh(range(len(set_sizes)), set_sizes.values, color="steelblue")
-        ax_set.set_yticks(range(len(set_sizes)))
-        ax_set.set_yticklabels(set_sizes.index)
-        ax_set.set_xlabel("Set Size")
-        ax_set.invert_yaxis()
-
-        for ax in [ax_bar, ax_matrix, ax_set]:
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-
-        plt.subplots_adjust(hspace=0.05, wspace=0.05)
-        return fig, (ax_set, ax_bar, ax_matrix)
-
-    # Default to Matplotlib when visualizer is 'mat' or unknown
-    if visualizer == "mat" or visualizer not in ("mat", "sb", "plotly"):
-        if visualizer not in ("mat", "sb", "plotly"):
+        if visualizer == "sb":
+            import seaborn as sns
+            sns.barplot(x=list(range(len(pattern_matrix))), y=pattern_matrix["count"], ax=ax_bar, color="steelblue")
+        # Default to Matplotlib when visualizer is 'mat' or unknown
+        elif visualizer == "mat":
+            ax_bar.bar(range(len(pattern_matrix)), pattern_matrix["count"])
+        else:
+            ax_bar.bar(range(len(pattern_matrix)), pattern_matrix["count"])
             print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
 
-        fig = plt.figure(figsize=(10, 6))
-        gs = GridSpec(2, 2, width_ratios=[1, 3], height_ratios=[2, 1])
-
-        ax_set = fig.add_subplot(gs[1, 0])
-        ax_bar = fig.add_subplot(gs[0, 1])
-        ax_matrix = fig.add_subplot(gs[1, 1])
-
-        ax_bar.bar(range(len(pattern_matrix)), pattern_matrix["count"])
         ax_bar.set_ylabel("Intersection Size")
         ax_bar.set_xticks([])
 
@@ -355,24 +311,24 @@ def vis_miss(df, sort=False, visualizer="mat"):
         )
         fig.update_yaxes(showticklabels=False)
         return fig, None
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    if visualizer == "mat":
-        ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
-    elif visualizer == "sb":
-        import seaborn as sns
-        sns.heatmap(plot_matrix, ax=ax, cmap="gray_r", cbar=False)
     else:
-        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
-        ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
+        fig, ax = plt.subplots(figsize=(10, 6))
 
-    ax.set_xticks(range(len(df.columns)))
-    ax.set_xticklabels(df.columns, rotation=70)
+        if visualizer == "mat":
+            ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
+        elif visualizer == "sb":
+            import seaborn as sns
+            sns.heatmap(plot_matrix, ax=ax, cmap="gray_r", cbar=False)
+        else:
+            print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+            ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
 
-    ax.set_yticks([])
-    ax.set_title("Missing Data Matrix")
+        ax.set_xticks(range(len(df.columns)))
+        ax.set_xticklabels(df.columns, rotation=70)
 
-    plt.tight_layout()
+        ax.set_yticks([])
+        ax.set_title("Missing Data Matrix")
 
-    return fig, ax
+        plt.tight_layout()
+
+        return fig, ax

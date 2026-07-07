@@ -29,5 +29,5 @@ test_df = pd.DataFrame({
           21, 22, np.nan, 24, 25, 26, 27, np.nan, 29, 30]
 })
 
-fig, ax = gg_miss_upset(test_df)
-plt.show()
+fig, ax = gg_miss_upset(test_df, visualizer="plotly")
+fig.show()
