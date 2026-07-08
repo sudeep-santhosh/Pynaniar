@@ -259,7 +259,7 @@ def miss_scan_count(df,search=[]):
         - n
     """
     validate_dataframe(df)
-    validate_search(df)
+    validate_search(search)
 
     if np.isscalar(search):
         search = [search]
@@ -1050,4 +1050,61 @@ def label_miss_2d(x1, x2):
             "Not Missing",
             "Missing"
         )
+    )
+
+def label_missings(
+    df,
+    columns=None,
+    missing="Missing",
+    complete="Not Missing"
+):
+    """
+    Label rows as missing or complete.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+    columns : str or list-like, optional
+        Columns to examine for missing values.
+        If None, all columns are used.
+    missing : str, default="Missing"
+        Label assigned to rows containing at least one missing value.
+    complete : str, default="Not Missing"
+        Label assigned to rows containing no missing values.
+
+    Returns
+    -------
+    pandas.Series
+        Series containing `missing` or `complete` labels for each row.
+
+    Examples
+    --------
+    >>> label_missings(df)
+    0    Not Missing
+    1        Missing
+    2        Missing
+    dtype: object
+
+    >>> label_missings(df, columns=["x", "y"])
+    0    Not Missing
+    1        Missing
+    2    Not Missing
+    dtype: object
+    """
+    validate_dataframe(df)
+
+    if columns is not None:
+        columns = validate_columns(df, columns)
+        data = df[columns]
+    else:
+        data = df
+
+    has_missing = data.isna().any(axis=1)
+
+    return pd.Series(
+        np.where(has_missing, missing, complete),
+        index=df.index,
+        name="label_missings"
+    )
     )
