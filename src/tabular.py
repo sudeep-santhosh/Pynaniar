@@ -1107,3 +1107,4 @@ def label_missings(
         index=df.index,
         name="label_missings"
     )
+    )
