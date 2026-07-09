@@ -1,11 +1,191 @@
 import pandas as pd
 from utils import count_missing
-from validation import validate_dataframe
+from validation import validate_dataframe, validate_column, validation_span_check
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, to_hex
 from matplotlib.patches import Patch
 from matplotlib.gridspec import GridSpec
+
+def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
+    """
+    Visualize the proportion of missing values in repeated spans of a variable.
+
+    This mirrors the behaviour of naniar's gg_miss_span by summarizing a
+    variable into contiguous windows of length ``span_every`` and showing the
+    proportion of missing vs complete values in each span as a stacked 100% bar chart.
+    The default visualization uses matplotlib, but seaborn and plotly are also
+    supported through the ``visualizer`` argument.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+    var : str
+        Name of the variable to examine for missing values.
+    span_every : int
+        Size of each span/window.
+    facet : str, optional
+        Optional column name used to create faceted subplots.
+    visualizer : str, default="mat"
+        Plotting backend. Supported values are ``"mat"``, ``"sb"`` and
+        ``"plotly"``.
+
+    Returns
+    -------
+    fig, ax
+        Figure object and axes for matplotlib/seaborn, or a plotly figure and
+        ``None`` for plotly.
+    """
+    validate_dataframe(df)
+    validate_column(df, var)
+    validation_span_check(span_every)
+
+    if facet is not None:
+        validate_column(df, facet)
+
+    series = df[var]
+    if not isinstance(series, pd.Series):
+        raise TypeError("'var' must refer to a pandas Series")
+
+    visualizer = visualizer.lower()
+
+    def build_span_df(values):
+        n_rows = len(values)
+        span_counter = np.arange(1, n_rows // span_every + 2)
+        spans = []
+        for start in range(0, n_rows, span_every):
+            end = min(start + span_every, n_rows)
+            spans.append(values.iloc[start:end])
+
+        n_miss_list = []
+        n_complete_list = []
+        for span in spans:
+            n_miss = span.isna().sum()
+            n_complete = (~span.isna()).sum()
+            n_miss_list.append(n_miss)
+            n_complete_list.append(n_complete)
+
+        total = [n_m + n_c for n_m, n_c in zip(n_miss_list, n_complete_list)]
+        prop_miss = [n_m / t if t > 0 else 0 for n_m, t in zip(n_miss_list, total)]
+        prop_complete = [n_c / t if t > 0 else 0 for n_c, t in zip(n_complete_list, total)]
+
+        return pd.DataFrame({
+            "span_counter": span_counter[:len(n_miss_list)],
+            "n_miss": n_miss_list,
+            "n_complete": n_complete_list,
+            "prop_miss": prop_miss,
+            "prop_complete": prop_complete,
+        })
+
+    if facet is None:
+        span_df = build_span_df(series)
+
+        if visualizer == "plotly":
+            import plotly.graph_objects as go
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=span_df["span_counter"],
+                y=span_df["prop_complete"],
+                name="Present",
+                marker_color="lightgrey",
+            ))
+            fig.add_trace(go.Bar(
+                x=span_df["span_counter"],
+                y=span_df["prop_miss"],
+                name="Missing",
+                marker_color="black",
+            ))
+            fig.update_layout(
+                barmode="stack",
+                xaxis_title="Span",
+                yaxis_title="Proportion missing",
+                title=f"Proportion of missing values<br>Over a repeating span of {span_every}",
+                yaxis=dict(tickformat=".0%"),
+            )
+            return fig, None
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        x_pos = np.arange(len(span_df))
+        
+        if visualizer == "sb":
+            import seaborn as sns
+        
+        ax.bar(x_pos, span_df["prop_complete"], label="Present", color="lightgrey")
+        ax.bar(x_pos, span_df["prop_miss"], bottom=span_df["prop_complete"], label="Missing", color="black")
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(span_df["span_counter"])
+
+        ax.set_xlabel("Span")
+        ax.set_ylabel("Proportion missing")
+        ax.set_title(f"Proportion of missing values\nOver a repeating span of {span_every}")
+        ax.legend(loc="upper right")
+        ax.set_ylim([0, 1])
+        plt.tight_layout()
+        return fig, ax
+
+    facet_values = df[facet].astype(str)
+    facet_levels = sorted(facet_values.unique())
+
+    if visualizer == "plotly":
+        import plotly.graph_objects as go
+        import plotly.subplots as sp
+
+        records = []
+        for facet_value in facet_levels:
+            subset = df[facet_values == facet_value]
+            subset_span_df = build_span_df(subset[var])
+            subset_span_df[facet] = facet_value
+            records.append(subset_span_df)
+
+        plot_df = pd.concat(records, ignore_index=True)
+        
+        fig = sp.make_subplots(rows=1, cols=len(facet_levels), subplot_titles=facet_levels)
+        for i, facet_value in enumerate(facet_levels, 1):
+            subset_df = plot_df[plot_df[facet] == facet_value]
+            fig.add_trace(
+                go.Bar(x=subset_df["span_counter"], y=subset_df["prop_complete"], name="Present", marker_color="lightgrey", showlegend=(i==1)),
+                row=1, col=i,
+            )
+            fig.add_trace(
+                go.Bar(x=subset_df["span_counter"], y=subset_df["prop_miss"], name="Missing", marker_color="black", showlegend=(i==1)),
+                row=1, col=i,
+            )
+        fig.update_layout(barmode="stack", title_text=f"Proportion of missing values by {facet}<br>Over a repeating span of {span_every}", height=400)
+        fig.update_yaxes(tickformat=".0%")
+        return fig, None
+
+    fig, axes = plt.subplots(
+        nrows=len(facet_levels),
+        ncols=1,
+        figsize=(8, 3 * len(facet_levels)),
+        sharex=True,
+    )
+    if len(facet_levels) == 1:
+        axes = [axes]
+
+    for ax, facet_value in zip(axes, facet_levels):
+        subset = df[facet_values == facet_value]
+        subset_span_df = build_span_df(subset[var])
+
+        x_pos = np.arange(len(subset_span_df))
+        ax.bar(x_pos, subset_span_df["prop_complete"], label="Present", color="lightgrey")
+        ax.bar(x_pos, subset_span_df["prop_miss"], bottom=subset_span_df["prop_complete"], label="Missing", color="black")
+        
+        ax.set_title(f"{facet}={facet_value}")
+        ax.set_ylabel("Proportion missing")
+        ax.set_xlabel("Span")
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(subset_span_df["span_counter"])
+        ax.set_ylim([0, 1])
+        if ax == axes[0]:
+            ax.legend(loc="upper right")
+
+    fig.suptitle(f"Proportion of missing values by {var}\nOver a repeating span of {span_every}")
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    return fig, axes
+
 
 def vis_dat(df, visualizer="mat"):
     """
