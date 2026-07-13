@@ -86,4 +86,81 @@ def validate_numeric_series(x):
 
     if not is_numeric_dtype(x):
         raise TypeError("x must be numeric")
+
+def any_shadow(df):
+    """
+    Check whether a dataframe contains any shadow columns.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    bool
+        True if at least one shadow column exists,
+        otherwise False.
+    """
+    validate_dataframe(df)
+
+    return any(col.endswith("_NA") for col in df.columns)
+
+def validate_series(x, name="x"):
+    """
+    Validate that the input is a pandas Series.
+
+    Parameters
+    ----------
+    x : object
+        Object to validate.
+    name : str, default="x"
+        Name of the argument for error messages.
+
+    Raises
+    ------
+    TypeError
+        If x is not a pandas Series.
+    """
+    if not isinstance(x, pd.Series):
+        raise TypeError(f"'{name}' must be a pandas Series.")
     
+def validate_categorical_series(x, name="x"):
+    """
+    Validate that the input is a categorical pandas Series.
+
+    Parameters
+    ----------
+    x : pandas.Series
+        Series to validate.
+    name : str, default="x"
+        Name of the argument for error messages.
+
+    Raises
+    ------
+    TypeError
+        If x is not a pandas Series or does not have a categorical dtype.
+    """
+    validate_series(x, name)
+
+    if not isinstance(x.dtype, pd.CategoricalDtype):
+        raise TypeError(f"'{name}' must have a categorical dtype.")
+
+def validate_string(value, name="value"):
+    """
+    Validate that the input is a string.
+
+    Parameters
+    ----------
+    value : object
+        Value to validate.
+    name : str, default="value"
+        Name of the argument for error messages.
+
+    Raises
+    ------
+    TypeError
+        If value is not a string.
+    """
+    if not isinstance(value, str):
+        raise TypeError(f"'{name}' must be a string.")
