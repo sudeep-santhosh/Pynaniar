@@ -22,3 +22,12 @@ def count_missing(df, axis=0):
         Missing value counts.
     """
     return df.isna().sum(axis=axis)
+
+def shade(series):
+    """
+    Convert a Series to a shadow variable.
+    """
+    return series.isna().map({
+        True: "Missing",
+        False: "Not Missing"
+    }).astype("string")
