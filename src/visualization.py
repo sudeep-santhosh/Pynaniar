@@ -187,6 +187,141 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
     return fig, axes
 
 
+def geom_miss_point(df, x, y, visualizer="mat", prop_below=0.1, jitter=0.05):
+    """
+    Plot a scatter plot that highlights missing values in one variable.
+
+    This mirrors the intent of naniar's ``geom_miss_point()`` by showing a
+    standard point plot for two variables while visually distinguishing missing
+    values in the y variable. Missing points are drawn with a different color
+    and a small vertical offset to make them visible.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+    x : str
+        Name of the x-axis variable.
+    y : str
+        Name of the y-axis variable.
+    visualizer : str, default="mat"
+        Plotting backend. Supported values are ``"mat"``, ``"sb"`` and
+        ``"plotly"``.
+    prop_below : float, default=0.1
+        Vertical offset applied to missing points.
+    jitter : float, default=0.05
+        Small random jitter added to missing-point positions to avoid overlap.
+
+    Returns
+    -------
+    fig, ax
+        Figure and axes for matplotlib/seaborn, or a plotly figure and None.
+    """
+    validate_dataframe(df)
+    validate_column(df, x)
+    validate_column(df, y)
+
+    visualizer = visualizer.lower()
+
+    def impute_below(series, prop_below, jitter, seed_shift=159):
+        values = series.astype(float).copy()
+        mask = values.isna()
+        if not mask.any():
+            return values
+
+        complete = values[~mask]
+        if complete.empty:
+            return values
+
+        if len(complete) == 1 or complete.var() == 0:
+            xmin = complete.min()
+            x_shift = xmin - xmin * prop_below
+            jitter_mag = abs(xmin) * jitter if xmin != 0 else jitter
+        else:
+            xmin = complete.min()
+            xrange = complete.max() - complete.min()
+            x_shift = xmin - xrange * prop_below
+            jitter_mag = xrange * jitter
+
+        rng = np.random.RandomState(seed_shift)
+        jitter_values = (rng.rand(len(values)) - 0.5) * jitter_mag
+
+        values.loc[mask] = x_shift + jitter_values[mask]
+        return values
+
+    plot_df = df[[x, y]].copy().reset_index(drop=True)
+    plot_df["missing"] = np.where(plot_df[x].isna() | plot_df[y].isna(), "Missing", "Not Missing")
+    plot_df["x_plot"] = impute_below(plot_df[x], prop_below, jitter)
+    plot_df["y_plot"] = impute_below(plot_df[y], prop_below, jitter)
+
+    palette = {"Not Missing": "#00BFC4", "Missing": "#F8766D"}
+
+    if visualizer == "plotly":
+        import plotly.express as px
+
+        fig = px.scatter(
+            plot_df,
+            x="x_plot",
+            y="y_plot",
+            color="missing",
+            color_discrete_map=palette,
+            labels={"x_plot": x, "y_plot": y, "missing": "missing"},
+            title=f"Missing values for {y} against {x}",
+        )
+        fig.update_traces(marker=dict(size=8))
+        return fig, None
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+
+    if visualizer == "sb":
+        import seaborn as sns
+
+        sns.scatterplot(
+            data=plot_df,
+            x="x_plot",
+            y="y_plot",
+            hue="missing",
+            palette=palette,
+            ax=ax,
+            s=50,
+            legend="full",
+        )
+    elif visualizer == "mat":
+        for label, color in palette.items():
+            subset = plot_df[plot_df["missing"] == label]
+            ax.scatter(
+                subset["x_plot"],
+                subset["y_plot"],
+                color=color,
+                label=label,
+                s=50,
+                alpha=0.8,
+                edgecolors="face",
+                linewidths=0,
+            )
+    else:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        for label, color in palette.items():
+            subset = plot_df[plot_df["missing"] == label]
+            ax.scatter(
+                subset["x_plot"],
+                subset["y_plot"],
+                color=color,
+                label=label,
+                s=50,
+                alpha=0.8,
+                edgecolors="face",
+                linewidths=0,
+            )
+
+    ax.set_title(f"Missing values for {y} against {x}")
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    return fig, ax
+
+
 def vis_dat(df, visualizer="mat"):
     """
     Visualize missing values and column data types in a dataframe.
