@@ -41,6 +41,8 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
     validate_column(df, var)
     validation_span_check(span_every)
 
+    visualizer = visualizer.lower()
+
     if facet is not None:
         validate_column(df, facet)
 
@@ -349,6 +351,7 @@ def vis_dat(df, visualizer="mat"):
     using a separate missing-value color.
     """
     validate_dataframe(df)
+    visualizer = visualizer.lower()
     n_rows, n_cols = df.shape
     plot_matrix = np.zeros((n_rows, n_cols), dtype=int)
 
@@ -442,6 +445,7 @@ def gg_miss_upset(df, visualizer="mat"):
         Matplotlib figure and axes for further customization
     """
     validate_dataframe(df)
+    visualizer = visualizer.lower()
     miss = df.isna()
 
     patterns = miss.apply(tuple, axis=1)
@@ -605,7 +609,7 @@ def vis_miss(df, sort=False, visualizer="mat"):
 
    
     miss = df.isna()
-
+    visualizer = visualizer.lower()
 
     if sort:
         miss = miss.loc[
