@@ -11,12 +11,6 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
     """
     Visualize the proportion of missing values in repeated spans of a variable.
 
-    This mirrors the behaviour of naniar's gg_miss_span by summarizing a
-    variable into contiguous windows of length ``span_every`` and showing the
-    proportion of missing vs complete values in each span as a stacked 100% bar chart.
-    The default visualization uses matplotlib, but seaborn and plotly are also
-    supported through the ``visualizer`` argument.
-
     Parameters
     ----------
     df : pandas.DataFrame
@@ -193,11 +187,6 @@ def geom_miss_point(df, x, y, visualizer="mat", prop_below=0.1, jitter=0.05):
     """
     Plot a scatter plot that highlights missing values in one variable.
 
-    This mirrors the intent of naniar's ``geom_miss_point()`` by showing a
-    standard point plot for two variables while visually distinguishing missing
-    values in the y variable. Missing points are drawn with a different color
-    and a small vertical offset to make them visible.
-
     Parameters
     ----------
     df : pandas.DataFrame
@@ -320,6 +309,161 @@ def geom_miss_point(df, x, y, visualizer="mat", prop_below=0.1, jitter=0.05):
     ax.set_xlabel(x)
     ax.set_ylabel(y)
     ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    return fig, ax
+
+
+def gg_miss_var(df, visualizer="mat"):
+    """
+    Visualize the number of missing values per variable.
+
+    """
+    validate_dataframe(df)
+    visualizer = visualizer.lower()
+
+    summary = pd.DataFrame({
+        "variable": df.columns,
+        "n_miss": df.isna().sum().values,
+        "pct_miss": (df.isna().mean() * 100).round(2).values,
+    }).sort_values(by="n_miss", ascending=False).reset_index(drop=True)
+    summary["variable"] = pd.Categorical(
+        summary["variable"],
+        categories=summary["variable"].tolist(),
+        ordered=True,
+    )
+
+    if visualizer == "plotly":
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+        for idx, row in summary.iterrows():
+            fig.add_trace(go.Scatter(
+                x=[0, row["n_miss"]],
+                y=[row["variable"], row["variable"]],
+                mode="lines",
+                line=dict(color="#484878", width=2),
+                showlegend=False,
+                hovertemplate=f"{row['variable']}: {row['n_miss']}<extra></extra>",
+            ))
+            fig.add_trace(go.Scatter(
+                x=[row["n_miss"]],
+                y=[row["variable"]],
+                mode="markers",
+                marker=dict(color="#484878", size=8),
+                showlegend=False,
+                hovertemplate=f"{row['variable']}: {row['n_miss']}<extra></extra>",
+            ))
+        fig.update_layout(
+            title="Missing values by variable",
+            xaxis_title="Number of missing values",
+            yaxis_title="Variables",
+            template="plotly_white",
+        )
+        fig.update_yaxes(
+            categoryarray=summary["variable"].tolist(),
+            type="category",
+            autorange="reversed",
+        )
+        return fig, None
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    y_pos = np.arange(len(summary))
+
+    if visualizer == "sb":
+        import seaborn as sns
+        ax.hlines(y_pos, 0, summary["n_miss"], color="#484878", linewidth=2, zorder=1)
+        sns.scatterplot(
+            x=summary["n_miss"],
+            y=summary["variable"],
+            ax=ax,
+            color="#484878",
+            s=40,
+            zorder=3,
+        )
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(summary["variable"])
+        ax.invert_yaxis()
+    elif visualizer == "mat":
+        ax.hlines(y_pos, 0, summary["n_miss"], color="#484878", linewidth=2, zorder=1)
+        ax.scatter(summary["n_miss"], y_pos, color="#484878", s=40, zorder=3)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(summary["variable"])
+    else:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        ax.hlines(y_pos, 0, summary["n_miss"], color="#484878", linewidth=2, zorder=1)
+        ax.scatter(summary["n_miss"], y_pos, color="#484878", s=40, zorder=3)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(summary["variable"])
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(summary["variable"])
+    ax.invert_yaxis()
+    ax.set_title("Missing values by variable")
+    ax.set_xlabel("Number of missing values")
+    ax.set_ylabel("Variables")
+    ax.set_xlim(0, max(summary["n_miss"].max(), 1) * 1.1)
+    plt.tight_layout()
+    return fig, ax
+
+
+def gg_miss_var_cumsum(df, visualizer="mat"):
+    """
+    Visualize the cumulative number of missing values by variable.
+
+    """
+    validate_dataframe(df)
+    visualizer = visualizer.lower()
+
+    summary = pd.DataFrame({
+        "variable": df.columns,
+        "n_miss": df.isna().sum().values,
+    })
+    summary = summary.sort_values(by="n_miss", ascending=False).reset_index(drop=True)
+    summary["n_miss_cumsum"] = summary["n_miss"].cumsum()
+
+    if visualizer == "plotly":
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=summary["variable"],
+                y=summary["n_miss_cumsum"],
+                mode="lines",
+                name="Cumulative missing",
+                line=dict(color="#484878", width=2),
+            )
+        )
+        fig.update_layout(
+            title="Cumulative missing values by variable",
+            xaxis_title="Var",
+            yaxis_title="Cumsum of missing values",
+            template="plotly_white",
+        )
+        return fig, None
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    x_pos = np.arange(len(summary))
+
+    if visualizer == "sb":
+        import seaborn as sns
+        sns.lineplot(x=x_pos, y=summary["n_miss_cumsum"], ax=ax, color="#484878", linewidth=2)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(summary["variable"])
+    elif visualizer == "mat":
+        ax.plot(x_pos, summary["n_miss_cumsum"], color="#484878", linewidth=2)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(summary["variable"])
+    else:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        ax.plot(x_pos, summary["n_miss_cumsum"], color="#484878", linewidth=2)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(summary["variable"])
+
+    ax.set_title("gg_miss_var_cumsum")
+    ax.set_xlabel("Var")
+    ax.set_ylabel("Cumsum of missing values")
+    plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
     return fig, ax
 
