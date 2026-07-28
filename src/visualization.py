@@ -6,6 +6,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, to_hex
 from matplotlib.patches import Patch
 from matplotlib.gridspec import GridSpec
+from tabular import (
+    miss_var_summary,
+    miss_var_cumsum,
+    miss_case_summary,
+    miss_case_cumsum,
+)
 
 def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
     """
@@ -311,6 +317,228 @@ def geom_miss_point(df, x, y, visualizer="mat", prop_below=0.1, jitter=0.05):
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     return fig, ax
+
+
+# def stat_miss_point(df, x, y, prop_below=0.1, jitter=0.05):
+#     """
+#     Produces `x_plot`, `y_plot` and `missing` columns for plotting.
+#     """
+#     validate_dataframe(df)
+#     validate_column(df, x)
+#     validate_column(df, y)
+
+#     def impute_below(series, prop_below, jitter, seed_shift=159):
+#         values = series.astype(float).copy()
+#         mask = values.isna()
+#         if not mask.any():
+#             return values
+
+#         complete = values[~mask]
+#         if complete.empty:
+#             return values
+
+#         if len(complete) == 1 or complete.var() == 0:
+#             xmin = complete.min()
+#             x_shift = xmin - xmin * prop_below
+#             jitter_mag = abs(xmin) * jitter if xmin != 0 else jitter
+#         else:
+#             xmin = complete.min()
+#             xrange = complete.max() - complete.min()
+#             x_shift = xmin - xrange * prop_below
+#             jitter_mag = xrange * jitter
+
+#         rng = np.random.RandomState(seed_shift)
+#         jitter_values = (rng.rand(len(values)) - 0.5) * jitter_mag
+
+#         values.loc[mask] = x_shift + jitter_values[mask]
+#         return values
+
+#     plot_df = df[[x, y]].copy().reset_index(drop=True)
+#     plot_df["missing"] = np.where(plot_df[x].isna() | plot_df[y].isna(), "Missing", "Not Missing")
+#     plot_df["x_plot"] = impute_below(plot_df[x], prop_below, jitter)
+#     plot_df["y_plot"] = impute_below(plot_df[y], prop_below, jitter)
+
+#     return plot_df
+
+
+def gg_miss_fct(df, fct, visualizer="mat", title="% Missing by Variable and Factor", subtitle=None, cbar_label="% Miss"):
+    """
+    Show % missing for each variable broken down by levels of a factor (`fct`).
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataframe.
+    fct : str
+        Name of the factor column used to group rows.
+    visualizer : str, default="mat"
+        Plotting backend. Supported values are ``"mat"``, ``"sb"`` and
+        ``"plotly"``.
+    title : str, optional
+        Plot title.
+    subtitle : str, optional
+        Plot subtitle.
+    cbar_label : str, optional
+        Label for the colorbar.
+    """
+    validate_dataframe(df)
+    validate_column(df, fct)
+    visualizer = visualizer.lower()
+
+    levels = df[fct].astype(str).unique().tolist()
+    # order variables by overall pct missing, excluding the factor column itself
+    var_order = df.drop(columns=[fct]).isna().mean().sort_values(ascending=False).index.tolist()
+
+    records = []
+    for lvl in levels:
+        subset = df[df[fct].astype(str) == lvl]
+        pct = subset.drop(columns=[fct]).isna().mean() * 100
+        for var, val in pct[var_order].items():
+            records.append({"variable": var, "level": lvl, "pct_miss": val})
+
+    plot_df = pd.DataFrame.from_records(records)
+    variables = var_order
+    lvl_order = levels
+
+    # build z matrix for heat-like plot: rows variables, cols levels
+    z = plot_df.pivot(index="variable", columns="level", values="pct_miss").reindex(variables)
+
+    if visualizer == "plotly":
+        import plotly.graph_objects as go
+        fig = go.Figure(data=go.Heatmap(z=z.values, x=lvl_order, y=variables, colorscale="Viridis", reversescale=False))
+        fig.update_layout(title=title, xaxis_title=str(fct), yaxis_title="Variable")
+        if subtitle:
+            fig.update_layout(title={"text": f"{title}<br><sup>{subtitle}</sup>"})
+        return fig, None
+
+    fig, ax = plt.subplots(figsize=(8, max(3, len(variables) * 0.3)))
+    if visualizer == "sb":
+        import seaborn as sns
+        sns.heatmap(
+            z,
+            ax=ax,
+            cmap="viridis",
+            cbar=True,
+            cbar_kws={"label": cbar_label},
+            origin="lower",
+        )
+    elif visualizer == "mat":
+        im = ax.imshow(z.values, aspect="auto", cmap="viridis", origin="lower")
+        cbar = fig.colorbar(im, ax=ax)
+        cbar.set_label(cbar_label)
+        ax.set_yticks(np.arange(len(variables)))
+        ax.set_yticklabels(variables)
+        ax.set_xticks(np.arange(len(lvl_order)))
+        ax.set_xticklabels(lvl_order, rotation=45, ha="right")
+    else:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        im = ax.imshow(z.values, aspect="auto", cmap="viridis", origin="lower")
+        cbar = fig.colorbar(im, ax=ax)
+        cbar.set_label(cbar_label)
+
+    if subtitle:
+        ax.set_title(f"{title}\n{subtitle}", pad=12)
+    else:
+        ax.set_title(title)
+    ax.set_xlabel(str(fct))
+    ax.set_ylabel("variable")
+    plt.tight_layout()
+    return fig, ax
+
+
+# def gg_miss_which(df, visualizer="mat"):
+#     """
+#     Indicate which variables contain any missing values.
+#     """
+#     validate_dataframe(df)
+#     visualizer = visualizer.lower()
+
+#     has_na = df.isna().any()
+#     vars_df = pd.DataFrame({"variable": has_na.index.astype(str), "has_na": has_na.values.astype(int)})
+#     vars_df = vars_df.sort_values(by="has_na", ascending=False).reset_index(drop=True)
+
+#     if visualizer == "plotly":
+#         import plotly.graph_objects as go
+#         fig = go.Figure(go.Bar(x=vars_df["has_na"], y=vars_df["variable"], orientation="h", marker_color=["#F8766D" if v==1 else "lightgrey" for v in vars_df["has_na"]]))
+#         fig.update_layout(title="Which variables contain missing data", xaxis=dict(showticklabels=False))
+#         return fig, None
+
+#     fig, ax = plt.subplots(figsize=(8, max(3, len(vars_df) * 0.2)))
+#     colors = ["#F8766D" if v == 1 else "lightgrey" for v in vars_df["has_na"]]
+#     if visualizer == "sb":
+#         import seaborn as sns
+#         ax.barh(np.arange(len(vars_df)), vars_df["has_na"], color=colors)
+#     elif visualizer == "mat":
+#         ax.barh(np.arange(len(vars_df)), vars_df["has_na"], color=colors)
+#     else:
+#         print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+#         ax.barh(np.arange(len(vars_df)), vars_df["has_na"], color=colors)
+
+#     ax.set_yticks(np.arange(len(vars_df)))
+#     ax.set_yticklabels(vars_df["variable"])
+#     ax.invert_yaxis()
+#     ax.set_xlabel("")
+#     ax.set_title("Which variables contain missing data")
+#     plt.tight_layout()
+#     return fig, ax
+
+
+# def gg_miss_case(df, facet=None, order_cases=True, show_pct=False, visualizer="mat"):
+#     """
+#     Visualise missing values per case (row).
+#     """
+#     validate_dataframe(df)
+#     visualizer = visualizer.lower()
+
+#     summary = miss_case_summary(df)
+#     # miss_case_summary returns sorted by pct_miss descending; if order_cases False, preserve input order
+#     if not order_cases:
+#         summary = summary.sort_values(by="case")
+
+#     y_col = "pct_miss" if show_pct else "n_miss"
+
+#     if visualizer == "plotly":
+#         import plotly.express as px
+#         fig = px.bar(summary, x=y_col, y=summary.index.astype(str), orientation="h", labels={"y": "case", y_col: y_col}, title="Missing values by case")
+#         fig.update_yaxes(autorange="reversed")
+#         return fig, None
+
+#     fig, ax = plt.subplots(figsize=(8, max(3, len(summary) * 0.02)))
+#     y_pos = np.arange(len(summary))
+#     ax.hlines(y_pos, 0, summary[y_col], color="#484878", linewidth=2)
+#     ax.scatter(summary[y_col], y_pos, color="#484878", s=30)
+#     ax.set_yticks(y_pos)
+#     ax.set_yticklabels(summary["case"].astype(str))
+#     ax.invert_yaxis()
+#     ax.set_xlabel(y_col)
+#     ax.set_title("Missing values by case")
+#     plt.tight_layout()
+#     return fig, ax
+
+
+# def gg_miss_cumsum(df, visualizer="mat"):
+#     """
+#     Plot the cumulative sum of missing values across cases (rows) ordered top-to-bottom.
+#     """
+#     validate_dataframe(df)
+#     visualizer = visualizer.lower()
+
+#     csum = miss_case_cumsum(df)
+
+#     if visualizer == "plotly":
+#         import plotly.graph_objects as go
+#         fig = go.Figure()
+#         fig.add_trace(go.Scatter(x=csum["case"].astype(str), y=csum["n_miss_cumsum"], mode="lines", line=dict(color="#484878", width=2)))
+#         fig.update_layout(title="Cumsum of missing values by case", xaxis_title="Case", yaxis_title="Cumsum of missing values")
+#         return fig, None
+
+#     fig, ax = plt.subplots(figsize=(8, 4))
+#     ax.plot(csum["case"].astype(str), csum["n_miss_cumsum"], color="#484878", linewidth=2)
+#     ax.set_xlabel("Case")
+#     ax.set_ylabel("Cumsum of missing values")
+#     plt.xticks(rotation=45, ha="right")
+#     plt.tight_layout()
+#     return fig, ax
 
 
 def gg_miss_var(df, visualizer="mat"):

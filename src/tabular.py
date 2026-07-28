@@ -1,9 +1,5 @@
 import pandas as pd
-<<<<<<< HEAD
-from utils import count_missing
-=======
 from utils import count_missing,shade
->>>>>>> ee7a707 (Add .gitignore and implement imputation utilities)
 from validation import validate_dataframe, validate_search, validate_column, validation_span_check,validation_x,validate_columns,any_shadow
 import numpy as np
 
@@ -1111,4 +1107,4 @@ def label_missings(
         index=df.index,
         name="label_missings"
     )
-    )
+    
