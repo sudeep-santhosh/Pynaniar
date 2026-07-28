@@ -42,6 +42,9 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
     validation_span_check(span_every)
 
     visualizer = visualizer.lower()
+    if visualizer not in {"mat", "sb", "plotly"}:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        visualizer = "mat"
 
     if facet is not None:
         validate_column(df, facet)
@@ -49,8 +52,6 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
     series = df[var]
     if not isinstance(series, pd.Series):
         raise TypeError("'var' must refer to a pandas Series")
-
-    visualizer = visualizer.lower()
 
     def build_span_df(values):
         n_rows = len(values)
@@ -108,12 +109,10 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
             )
             return fig, None
 
+        # visualizer is "mat" or "sb" — identical plotting logic
         fig, ax = plt.subplots(figsize=(8, 4))
         x_pos = np.arange(len(span_df))
-        
-        if visualizer == "sb":
-            import seaborn as sns
-        
+
         ax.bar(x_pos, span_df["prop_complete"], label="Present", color="lightgrey")
         ax.bar(x_pos, span_df["prop_miss"], bottom=span_df["prop_complete"], label="Missing", color="black")
         ax.set_xticks(x_pos)
@@ -142,22 +141,23 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
             records.append(subset_span_df)
 
         plot_df = pd.concat(records, ignore_index=True)
-        
+
         fig = sp.make_subplots(rows=1, cols=len(facet_levels), subplot_titles=facet_levels)
         for i, facet_value in enumerate(facet_levels, 1):
             subset_df = plot_df[plot_df[facet] == facet_value]
             fig.add_trace(
-                go.Bar(x=subset_df["span_counter"], y=subset_df["prop_complete"], name="Present", marker_color="lightgrey", showlegend=(i==1)),
+                go.Bar(x=subset_df["span_counter"], y=subset_df["prop_complete"], name="Present", marker_color="lightgrey", showlegend=(i == 1)),
                 row=1, col=i,
             )
             fig.add_trace(
-                go.Bar(x=subset_df["span_counter"], y=subset_df["prop_miss"], name="Missing", marker_color="black", showlegend=(i==1)),
+                go.Bar(x=subset_df["span_counter"], y=subset_df["prop_miss"], name="Missing", marker_color="black", showlegend=(i == 1)),
                 row=1, col=i,
             )
         fig.update_layout(barmode="stack", title_text=f"Proportion of missing values by {facet}<br>Over a repeating span of {span_every}", height=400)
         fig.update_yaxes(tickformat=".0%")
         return fig, None
 
+    # visualizer is "mat" or "sb" — identical plotting logic
     fig, axes = plt.subplots(
         nrows=len(facet_levels),
         ncols=1,
@@ -174,7 +174,7 @@ def gg_miss_span(df, var, span_every, facet=None, visualizer="mat"):
         x_pos = np.arange(len(subset_span_df))
         ax.bar(x_pos, subset_span_df["prop_complete"], label="Present", color="lightgrey")
         ax.bar(x_pos, subset_span_df["prop_miss"], bottom=subset_span_df["prop_complete"], label="Missing", color="black")
-        
+
         ax.set_title(f"{facet}={facet_value}")
         ax.set_ylabel("Proportion missing")
         ax.set_xlabel("Span")
@@ -414,14 +414,16 @@ def gg_miss_fct(df, fct, visualizer="mat", title="% Missing by Variable and Fact
     fig, ax = plt.subplots(figsize=(8, max(3, len(variables) * 0.3)))
     if visualizer == "sb":
         import seaborn as sns
+        # Seaborn heatmap defaults to origin='upper', so flip the DataFrame rows
+        # to match the matplotlib origin='lower' orientation.
         sns.heatmap(
-            z,
+            z.iloc[::-1],
             ax=ax,
             cmap="viridis",
             cbar=True,
             cbar_kws={"label": cbar_label},
-            origin="lower",
         )
+        ax.set_yticklabels(z.index[::-1], rotation=0)
     elif visualizer == "mat":
         im = ax.imshow(z.values, aspect="auto", cmap="viridis", origin="lower")
         cbar = fig.colorbar(im, ax=ax)
@@ -483,37 +485,67 @@ def gg_miss_fct(df, fct, visualizer="mat", title="% Missing by Variable and Fact
 #     return fig, ax
 
 
-# def gg_miss_case(df, facet=None, order_cases=True, show_pct=False, visualizer="mat"):
-#     """
-#     Visualise missing values per case (row).
-#     """
-#     validate_dataframe(df)
-#     visualizer = visualizer.lower()
+def gg_miss_case(df, facet=None, order_cases=True, show_pct=False, visualizer="mat"):
+    """
+    Visualise missing values per case (row).
+    """
+    validate_dataframe(df)
+    visualizer = visualizer.lower()
 
-#     summary = miss_case_summary(df)
-#     # miss_case_summary returns sorted by pct_miss descending; if order_cases False, preserve input order
-#     if not order_cases:
-#         summary = summary.sort_values(by="case")
+    if visualizer not in {"mat", "sb", "plotly"}:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        visualizer = "mat"
 
-#     y_col = "pct_miss" if show_pct else "n_miss"
+    summary = miss_case_summary(df)
+    if not order_cases:
+        summary = summary.sort_values(by="case")
 
-#     if visualizer == "plotly":
-#         import plotly.express as px
-#         fig = px.bar(summary, x=y_col, y=summary.index.astype(str), orientation="h", labels={"y": "case", y_col: y_col}, title="Missing values by case")
-#         fig.update_yaxes(autorange="reversed")
-#         return fig, None
+    y_col = "pct_miss" if show_pct else "n_miss"
+    x_label = "% Missing" if show_pct else "# Missing"
 
-#     fig, ax = plt.subplots(figsize=(8, max(3, len(summary) * 0.02)))
-#     y_pos = np.arange(len(summary))
-#     ax.hlines(y_pos, 0, summary[y_col], color="#484878", linewidth=2)
-#     ax.scatter(summary[y_col], y_pos, color="#484878", s=30)
-#     ax.set_yticks(y_pos)
-#     ax.set_yticklabels(summary["case"].astype(str))
-#     ax.invert_yaxis()
-#     ax.set_xlabel(y_col)
-#     ax.set_title("Missing values by case")
-#     plt.tight_layout()
-#     return fig, ax
+    if visualizer == "plotly":
+        import plotly.graph_objects as go
+
+        n = len(summary)
+        y_pos = np.arange(n)
+
+        fig = go.Figure(
+            go.Bar(
+                x=summary[y_col],
+                y=y_pos,
+                orientation="h",
+                width=1.0,
+                marker_color="#484878",
+                marker_line_width=0,
+                hovertemplate=f"{x_label}: " + "%{x}<br>Case: %{customdata}<extra></extra>",
+                customdata=summary["case"],
+            )
+        )
+        fig.update_layout(
+            title="Missing values by case",
+            xaxis_title=x_label,
+            yaxis_title="Cases",
+            bargap=0,
+            plot_bgcolor="white",
+        )
+        fig.update_yaxes(range=[n, 0], autorange=False, showgrid=True, gridcolor="#e5e5e5")
+        fig.update_xaxes(showgrid=True, gridcolor="#e5e5e5")
+        return fig, None
+
+    fig, ax = plt.subplots(figsize=(8, max(3, len(summary) * 0.05)))
+    y_pos = np.arange(len(summary))
+    ax.barh(y_pos, summary[y_col], height=1.0, align="edge", color="#484878")
+    ax.set_ylim(len(summary), 0)   # 0 at top, n at bottom — matches coord_flip() in R
+    ax.set_xlabel(x_label)
+    ax.set_ylabel("Cases")
+    ax.set_title("Missing values by case")
+
+    if visualizer == "sb":
+        import seaborn as sns
+        sns.despine(ax=ax)
+
+    plt.tight_layout()
+    return fig, ax
 
 
 # def gg_miss_cumsum(df, visualizer="mat"):
@@ -757,38 +789,39 @@ def vis_dat(df, visualizer="mat"):
             tickangle=70,
             side='top'
         )
-        ax = None
+        
+        return fig, None
+
+    fig, ax = plt.subplots()
+    if visualizer == "mat":
+        ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
+    elif visualizer == "sb":
+        import seaborn as sns
+        sns.heatmap(plot_matrix, cmap=cmap, ax=ax, cbar=False)
     else:
-        fig, ax = plt.subplots()
-        if visualizer == "mat":
-            ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
-        elif visualizer == "sb":
-            import seaborn as sns
-            sns.heatmap(plot_matrix, cmap=cmap, ax=ax, cbar=False)
-        else:
-            print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
-            ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        ax.imshow(plot_matrix, cmap=cmap, aspect="auto")
 
-        #ax.set_xticks(range(df.shape[1]))
-        #ax.set_xticklabels(df.columns, rotation=45)
-        plt.xticks(
-            ticks=range(len(df.columns)),
-            labels=df.columns,
-            rotation=70
-        )
-        for dtype, code in dtype_map.items():
-            legend_handles.append(
-                Patch(facecolor=colors[code], label=dtype)
-            )
-
+    #ax.set_xticks(range(df.shape[1]))
+    #ax.set_xticklabels(df.columns, rotation=45)
+    plt.xticks(
+        ticks=range(len(df.columns)),
+        labels=df.columns,
+        rotation=70
+    )
+    for dtype, code in dtype_map.items():
         legend_handles.append(
-            Patch(facecolor=colors[-1], label="NA")
+            Patch(facecolor=colors[code], label=dtype)
         )
-        ax.legend(handles=legend_handles, title="Type", loc="upper right")
-        #plt.gca().xaxis.tick_top()
-        ax.xaxis.tick_top()
-        plt.subplots_adjust(top=0.85)
-        plt.tight_layout()
+
+    legend_handles.append(
+        Patch(facecolor=colors[-1], label="NA")
+    )
+    ax.legend(handles=legend_handles, title="Type", loc="upper right")
+    #plt.gca().xaxis.tick_top()
+    ax.xaxis.tick_top()
+    plt.subplots_adjust(top=0.85)
+    plt.tight_layout()
 
     return fig, ax
 
@@ -894,64 +927,64 @@ def gg_miss_upset(df, visualizer="mat"):
 
         fig.update_layout(title="Missing Data Patterns", showlegend=False)
         return fig, None
+    
+    fig = plt.figure(figsize=(10, 6))
+    gs = GridSpec(2, 2, width_ratios=[1, 3], height_ratios=[2, 1])
+
+    ax_set = fig.add_subplot(gs[1, 0])
+    ax_bar = fig.add_subplot(gs[0, 1])
+    ax_matrix = fig.add_subplot(gs[1, 1])
+
+    if visualizer == "sb":
+        import seaborn as sns
+        sns.barplot(x=list(range(len(pattern_matrix))), y=pattern_matrix["count"], ax=ax_bar, color="steelblue")
+    # Default to Matplotlib when visualizer is 'mat' or unknown
+    elif visualizer == "mat":
+        ax_bar.bar(range(len(pattern_matrix)), pattern_matrix["count"])
     else:
-        fig = plt.figure(figsize=(10, 6))
-        gs = GridSpec(2, 2, width_ratios=[1, 3], height_ratios=[2, 1])
+        ax_bar.bar(range(len(pattern_matrix)), pattern_matrix["count"])
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
 
-        ax_set = fig.add_subplot(gs[1, 0])
-        ax_bar = fig.add_subplot(gs[0, 1])
-        ax_matrix = fig.add_subplot(gs[1, 1])
+    ax_bar.set_ylabel("Intersection Size")
+    ax_bar.set_xticks([])
 
-        if visualizer == "sb":
-            import seaborn as sns
-            sns.barplot(x=list(range(len(pattern_matrix))), y=pattern_matrix["count"], ax=ax_bar, color="steelblue")
-        # Default to Matplotlib when visualizer is 'mat' or unknown
-        elif visualizer == "mat":
-            ax_bar.bar(range(len(pattern_matrix)), pattern_matrix["count"])
-        else:
-            ax_bar.bar(range(len(pattern_matrix)), pattern_matrix["count"])
-            print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+    for i, row in pattern_matrix.iterrows():
+        missing_positions = []
 
-        ax_bar.set_ylabel("Intersection Size")
-        ax_bar.set_xticks([])
+        for j, col in enumerate(df.columns):
+            if row[col] == 1:
+                ax_matrix.scatter(i, j, color="black", s=40)
+                missing_positions.append(j)
+            else:
+                ax_matrix.scatter(i, j, color="lightgrey", s=40)
 
-        for i, row in pattern_matrix.iterrows():
-            missing_positions = []
+        if len(missing_positions) > 1:
+            ax_matrix.plot(
+                [i] * len(missing_positions),
+                missing_positions,
+                color="black"
+            )
 
-            for j, col in enumerate(df.columns):
-                if row[col] == 1:
-                    ax_matrix.scatter(i, j, color="black", s=40)
-                    missing_positions.append(j)
-                else:
-                    ax_matrix.scatter(i, j, color="lightgrey", s=40)
+    ax_matrix.set_yticks(range(len(df.columns)))
+    ax_matrix.set_yticklabels(df.columns)
+    ax_matrix.set_xticks(range(len(pattern_matrix)))
+    ax_matrix.set_xticklabels([])
 
-            if len(missing_positions) > 1:
-                ax_matrix.plot(
-                    [i] * len(missing_positions),
-                    missing_positions,
-                    color="black"
-                )
+    # --- Left bar (set size) ---
+    ax_set.barh(range(len(set_sizes)), set_sizes.values)
+    ax_set.set_yticks(range(len(set_sizes)))
+    ax_set.set_yticklabels(set_sizes.index)
+    ax_set.set_xlabel("Set Size")
+    ax_set.invert_yaxis()
 
-        ax_matrix.set_yticks(range(len(df.columns)))
-        ax_matrix.set_yticklabels(df.columns)
-        ax_matrix.set_xticks(range(len(pattern_matrix)))
-        ax_matrix.set_xticklabels([])
+    # --- Clean look ---
+    for ax in [ax_bar, ax_matrix, ax_set]:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
 
-        # --- Left bar (set size) ---
-        ax_set.barh(range(len(set_sizes)), set_sizes.values)
-        ax_set.set_yticks(range(len(set_sizes)))
-        ax_set.set_yticklabels(set_sizes.index)
-        ax_set.set_xlabel("Set Size")
-        ax_set.invert_yaxis()
+    plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
-        # --- Clean look ---
-        for ax in [ax_bar, ax_matrix, ax_set]:
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-
-        plt.subplots_adjust(hspace=0.05, wspace=0.05)
-
-        return fig, (ax_set, ax_bar, ax_matrix)
+    return fig, (ax_set, ax_bar, ax_matrix)
 
 
 def vis_miss(df, sort=False, visualizer="mat"):
@@ -1002,24 +1035,24 @@ def vis_miss(df, sort=False, visualizer="mat"):
         )
         fig.update_yaxes(showticklabels=False)
         return fig, None
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    if visualizer == "mat":
+        ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
+    elif visualizer == "sb":
+        import seaborn as sns
+        sns.heatmap(plot_matrix, ax=ax, cmap="gray_r", cbar=False)
     else:
-        fig, ax = plt.subplots(figsize=(10, 6))
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
 
-        if visualizer == "mat":
-            ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
-        elif visualizer == "sb":
-            import seaborn as sns
-            sns.heatmap(plot_matrix, ax=ax, cmap="gray_r", cbar=False)
-        else:
-            print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
-            ax.imshow(plot_matrix, aspect="auto", cmap="gray_r")
+    ax.set_xticks(range(len(df.columns)))
+    ax.set_xticklabels(df.columns, rotation=70)
 
-        ax.set_xticks(range(len(df.columns)))
-        ax.set_xticklabels(df.columns, rotation=70)
+    ax.set_yticks([])
+    ax.set_title("Missing Data Matrix")
 
-        ax.set_yticks([])
-        ax.set_title("Missing Data Matrix")
+    plt.tight_layout()
 
-        plt.tight_layout()
-
-        return fig, ax
+    return fig, ax
