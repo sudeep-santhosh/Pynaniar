@@ -448,41 +448,74 @@ def gg_miss_fct(df, fct, visualizer="mat", title="% Missing by Variable and Fact
     return fig, ax
 
 
-# def gg_miss_which(df, visualizer="mat"):
-#     """
-#     Indicate which variables contain any missing values.
-#     """
-#     validate_dataframe(df)
-#     visualizer = visualizer.lower()
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
-#     has_na = df.isna().any()
-#     vars_df = pd.DataFrame({"variable": has_na.index.astype(str), "has_na": has_na.values.astype(int)})
-#     vars_df = vars_df.sort_values(by="has_na", ascending=False).reset_index(drop=True)
+def gg_miss_which(df, visualizer="mat"):
+    """
+    Indicates which variables contain any missing values using uniform tiles.
+    Preserves original column order.
+    """
 
-#     if visualizer == "plotly":
-#         import plotly.graph_objects as go
-#         fig = go.Figure(go.Bar(x=vars_df["has_na"], y=vars_df["variable"], orientation="h", marker_color=["#F8766D" if v==1 else "lightgrey" for v in vars_df["has_na"]]))
-#         fig.update_layout(title="Which variables contain missing data", xaxis=dict(showticklabels=False))
-#         return fig, None
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input must be a pandas DataFrame")
 
-#     fig, ax = plt.subplots(figsize=(8, max(3, len(vars_df) * 0.2)))
-#     colors = ["#F8766D" if v == 1 else "lightgrey" for v in vars_df["has_na"]]
-#     if visualizer == "sb":
-#         import seaborn as sns
-#         ax.barh(np.arange(len(vars_df)), vars_df["has_na"], color=colors)
-#     elif visualizer == "mat":
-#         ax.barh(np.arange(len(vars_df)), vars_df["has_na"], color=colors)
-#     else:
-#         print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
-#         ax.barh(np.arange(len(vars_df)), vars_df["has_na"], color=colors)
+    visualizer = visualizer.lower()
+    has_na = df.isna().any()
+    
+    vars_df = pd.DataFrame({
+        "variable": has_na.index.astype(str),
+        "is_missing": has_na.values
+    })
+    
+    colors = ["#808080" if v else "#FFFFFF" for v in vars_df["is_missing"]]
 
-#     ax.set_yticks(np.arange(len(vars_df)))
-#     ax.set_yticklabels(vars_df["variable"])
-#     ax.invert_yaxis()
-#     ax.set_xlabel("")
-#     ax.set_title("Which variables contain missing data")
-#     plt.tight_layout()
-#     return fig, ax
+    if visualizer == "plotly":
+        import plotly.graph_objects as go
+        fig = go.Figure(go.Bar(
+            y=vars_df["variable"],
+            x=[1] * len(vars_df),
+            orientation="h",
+            marker_color=colors,
+            marker_line_color="white",
+            marker_line_width=1,
+            width=0.9
+        ))
+        fig.update_layout(
+            title="",
+            xaxis=dict(showticklabels=False, title="", zeroline=False),
+            yaxis=dict(title="", showticklabels=True),
+            plot_bgcolor="white",
+            showlegend=False,
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=max(200, len(vars_df) * 25)
+        )
+        fig.update_yaxes(autorange="reversed")
+        return fig, None
+
+    fig, ax = plt.subplots(figsize=(8, max(3, len(vars_df) * 0.3)))
+    y_pos = np.arange(len(vars_df))
+    ax.barh(y_pos, np.ones(len(vars_df)), color=colors, edgecolor="white", linewidth=1.0, height=0.9)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(vars_df["variable"])
+    ax.invert_yaxis()
+    ax.set_xticks([])
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax.set_title("")
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.set_xlim(0, 1)
+    plt.tight_layout()
+
+    if visualizer not in ["mat", "sb"]:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+
+    return fig, ax
 
 
 def gg_miss_case(df, facet=None, order_cases=True, show_pct=False, visualizer="mat"):
