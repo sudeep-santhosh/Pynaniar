@@ -580,31 +580,53 @@ def gg_miss_case(df, facet=None, order_cases=True, show_pct=False, visualizer="m
     plt.tight_layout()
     return fig, ax
 
+def gg_miss_case_cumsum(df, breaks=10, visualizer="mat"):
+    """
+    Plot the cumulative sum of missing values across cases (rows) ordered top-to-bottom.
+    """
+    validate_dataframe(df)
+    visualizer = visualizer.lower()
+    if visualizer not in {"mat", "sb", "plotly"}:
+        print(f"Unknown visualizer '{visualizer}', defaulting to 'mat'")
+        visualizer = "mat"
 
-# def gg_miss_cumsum(df, visualizer="mat"):
-#     """
-#     Plot the cumulative sum of missing values across cases (rows) ordered top-to-bottom.
-#     """
-#     validate_dataframe(df)
-#     visualizer = visualizer.lower()
+    csum = miss_case_cumsum(df)
+    case_labels = csum["case"].astype(str)
+    n = len(csum)
+    tick_idx = list(range(0, n, breaks))
 
-#     csum = miss_case_cumsum(df)
+    if visualizer == "plotly":
+        import plotly.graph_objects as go
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=case_labels,
+            y=csum["n_miss_cumsum"],
+            mode="lines",
+            line=dict(color="black", width=6),
+        ))
+        fig.update_layout(
+            xaxis_title="Case",
+            yaxis_title="Cumulative sum of missing values",
+            plot_bgcolor="white",
+            xaxis=dict(
+                tickmode="array",
+                tickvals=[case_labels.iloc[i] for i in tick_idx],
+                tickangle=45,
+                showgrid=True,
+                gridcolor="#e5e5e5",
+            ),
+            yaxis=dict(showgrid=True, gridcolor="#e5e5e5"),
+        )
+        return fig, None
 
-#     if visualizer == "plotly":
-#         import plotly.graph_objects as go
-#         fig = go.Figure()
-#         fig.add_trace(go.Scatter(x=csum["case"].astype(str), y=csum["n_miss_cumsum"], mode="lines", line=dict(color="#484878", width=2)))
-#         fig.update_layout(title="Cumsum of missing values by case", xaxis_title="Case", yaxis_title="Cumsum of missing values")
-#         return fig, None
-
-#     fig, ax = plt.subplots(figsize=(8, 4))
-#     ax.plot(csum["case"].astype(str), csum["n_miss_cumsum"], color="#484878", linewidth=2)
-#     ax.set_xlabel("Case")
-#     ax.set_ylabel("Cumsum of missing values")
-#     plt.xticks(rotation=45, ha="right")
-#     plt.tight_layout()
-#     return fig, ax
-
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(case_labels, csum["n_miss_cumsum"], color="black", linewidth=3)
+    ax.set_xticks(tick_idx)
+    ax.set_xticklabels(case_labels.iloc[tick_idx], rotation=45, ha="right")
+    ax.set_xlabel("Case")
+    ax.set_ylabel("Cumulative sum of missing values")
+    plt.tight_layout()
+    return fig, ax
 
 def gg_miss_var(df, visualizer="mat"):
     """
