@@ -179,7 +179,8 @@ def add_shadow(
 
 def miss_case_cumsum(df):
     """
-    Calculate cumulative sum of missing values across cases (rows).
+    Calculate cumulative sum of missing values across cases (rows), in
+    original top-to-bottom row order.
 
     Parameters
     ----------
@@ -192,19 +193,14 @@ def miss_case_cumsum(df):
         A table showing:
         - case: row identifier / index
         - n_miss: number of missing values in the row
-        - n_miss_cumsum: cumulative sum of missing values
+        - n_miss_cumsum: cumulative sum of missing values, in row order
     """
     validate_dataframe(df)
 
     result = pd.DataFrame({
         "case": df.index,
         "n_miss": df.isna().sum(axis=1)
-    })
-
-    result = result.sort_values(
-        by="n_miss",
-        ascending=False
-    ).reset_index(drop=True)
+    }).reset_index(drop=True)
 
     result["n_miss_cumsum"] = result["n_miss"].cumsum()
 
